@@ -30,6 +30,19 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
+const userDatabase = { 
+  "userRandomID": {
+    id: "userRandomID", 
+    email: "user@example.com", 
+    password: 123
+  },
+ "user2RandomID": {
+    id: "user2RandomID", 
+    email: "user2@example.com", 
+    password: 123
+  }
+}
+
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
@@ -46,10 +59,12 @@ app.get("/urls", (req, res) => {
   const templateVars = { urls: urlDatabase,username: req.cookies["username"]};
   res.render("urls_index", templateVars);
 });
+
 app.get("/urls/new", (req, res) => {
   const templateVars = {username: req.cookies['username']};
   res.render("urls_new", templateVars);
 });
+
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], username: req.cookies["username"]};
   res.render("urls_show", templateVars);
@@ -60,10 +75,12 @@ app.get("/u/:shortURL", (req, res) => {
   console.log(urlDatabase);
   res.redirect(longURL);
 });
-/*app.get('/login', (req, res) => {
-const templateVars = {username: null}
-res.render("login", templateVars);
-});*/
+
+app.get("/register", (req, res) => {
+  const templateVars = { urls: urlDatabase,username: req.cookies["username"]};
+  res.render('register', templateVars);
+});
+
 
 app.post("/urls", (req, res) => {
   console.log(req.body);  // Log the POST request body to the console
@@ -100,7 +117,32 @@ app.post('/login', (req, res) => {
 });
 app.post('/logout', (req,res) => {
   res.clearCookie('username');
-  res.redirect('/urls')
+  res.redirect('/urls');
+})
+
+app.post('/register', (req,res) => {
+  //collecting user information
+  const userId = generateRandomString();
+  const email = req.body.email;
+  const password = req.body.password;
+  
+  for(const userId in userDatabase) {
+    const user = userDatabase[userId];
+
+    if(user.email === email) {
+      return res.send('User already exists!');
+    }
+  }
+
+  const newUser = { 
+      id: userId, 
+      email: email, 
+      password: password,
+    };
+
+    userDatabase[userId] = newUser;
+    res.cookie('user_id', userId);
+    res.redirect('/urls');
 
 })
 
