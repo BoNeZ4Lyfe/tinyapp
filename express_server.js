@@ -3,44 +3,15 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
-//const cookieSession = require('cookie-session');
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
+const {findUserByEmail, authenticateUser, generateRandomString} = require('./helpers');
 
 const PORT = 8080; // default port 8080
 
-const generateRandomString = () => {
 
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-  let str = '';
-  for (let i = 0; i < 6; i++) {
-      str += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return str;
-}
-
-const findUserbyEmail = (email, database) => {
-for(let userId in database) {
-  const user = database[userId];
-
-  if(user.email === email) {
-    return user;
-  }
-}
-return false;
-}
-
-const authenticateUser = (email, password, database) => {
-const user = findUserbyEmail(email,database);
-if(user && bcrypt.compare(password, user.password)) {
- 
-  return user;
-}
-return false;
-}
 
 const urlDatabase = {
-
 "b2xVn2": {
   longURL: "http://www.lighthouselabs.ca",
   userId: 'user1',
@@ -68,10 +39,10 @@ const userDatabase = {
 
 //SERVER SETTINGS AND MIDDLEWARES
 app.use(cookieParser());
-/*app.use(cookieSession({
+app.use(cookieSession({
   name: 'session',
   keys: ['key1' , 'key2'],
-}))*/
+}))
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 
@@ -94,52 +65,50 @@ app.get("/urls.json", (req, res) => {
 
 //Views URLs routes
 app.get("/urls", (req, res) => {
-  const userId = req.cookies['user_id'];
+  const userId = req.session.user_id;
   const templateVars = { urls: urlDatabase, user: userDatabase[userId]};
   
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  const userId = req.cookies['user_id']
+  const userId = req.session.user_id;
   const templateVars = {user: userDatabase[userId]};
   
   if(userId) {
-    res.render("urls_new", templateVars);
+    return res.render("urls_new", templateVars);
   }
   res.redirect('/login')
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  const userId = req.cookies['user_id']
+  const userId = req.session.user_id;
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: userDatabase[userId] };
   res.render("urls_show", templateVars);
 });
 
 app.get("/u/:shortURL", (req, res) => {
   const {longURL} = urlDatabase[req.params.shortURL];
-  console.log(urlDatabase);
   res.redirect(longURL);
 });
 
 //Views auth routes
 app.get("/register", (req, res) => {
-  //redirect to url page if cookie doesnt exist
   const templateVars = {user: null};
   res.render('register', templateVars);
 });
 
 app.get('/login', (req,res) => {
-   //redirect to url page if cookie does exist
   const templateVars = {user: null};
 
   res.render('login', templateVars);
 });
 
 //CRUD URLs Routes
-//create Url
+//Create URL
 app.post("/urls", (req, res) => {
-  const userId = req.cookies.user_id;
+
+  const userId = req.session.user_id;
   if(!userId) {
     return res.status(400).send("Please login");
   }
@@ -166,14 +135,14 @@ app.post("/urls", (req, res) => {
     userId: user.id,
   };
 
-  res.redirect(`/urls/${shortURL}`);         
+  res.redirect(`/urls/${shortURL}`);      
 });
 
-//update URL
+//Update URL
 app.post('/urls/:shortURL', (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   if(!userId) {
-    return res.status(400).send("Please login");
+    res.status(400).send("Please login");
   }
 
   const user = userDatabase[userId];
@@ -203,7 +172,7 @@ app.post('/urls/:shortURL', (req, res) => {
 
 //Delete URL
 app.post('/urls/:shortURL/delete', (req, res) => {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   if(!userId) {
     return res.status(400).send("Please login");
   }
@@ -222,27 +191,23 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 });
 
 
-//auth routes
+//Auth routes
 app.post('/login', (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
 
   const user = authenticateUser(email, password, userDatabase);
-
-  bcrypt.compare(password, user.password, (err, success) => {
-
-  if(success) {
-    res.cookie('user_id', user.id)
-    return res.redirect(`/urls`);
-    
+  
+  if(!user) {
+    return res.status(403).send('Wrong Credentials');
   }
-  res.status(403).send('Wrong Credentials!');
 
-});
+  req.session.user_id = userDatabase[user].id;
+    return res.redirect(`/urls`);
 });
 
 app.post('/logout', (req,res) => {
-  res.clearCookie('user_id');
+  req.session = null;
   res.redirect('/login');
 })
 
@@ -250,7 +215,7 @@ app.post('/register', (req,res) => {
   const email = req.body.email;
   const password = req.body.password;
 
-  const user = findUserbyEmail(email,userDatabase);
+  const user = findUserByEmail(email,userDatabase);
 
   if(user) {
     return res.status(403).send('User already exists!');
@@ -268,7 +233,7 @@ const userId = generateRandomString();
   };
 
   userDatabase[userId] = newUser;
-  res.cookie('user_id', userId);
+  req.session.user_id = userId
   res.redirect('/urls');
 
   })
