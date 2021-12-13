@@ -3,6 +3,8 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
+//const cookieSession = require('cookie-session');
+const bcrypt = require('bcryptjs');
 
 const PORT = 8080; // default port 8080
 
@@ -30,7 +32,7 @@ return false;
 
 const authenticateUser = (email, password, database) => {
 const user = findUserbyEmail(email,database);
-if(user && user.password === password) {
+if(user && bcrypt.compare(password, user.password)) {
  
   return user;
 }
@@ -54,18 +56,22 @@ const userDatabase = {
 "userRandomID": {
   id: "userRandomID", 
   email: "user@example.com", 
-  password: 123
+  password: 123,
 },
 "user2RandomID": {
   id: "user2RandomID", 
   email: "user2@example.com", 
-  password: 123
-}
-}
+  password: 123,
+},
+};
 
 
 //SERVER SETTINGS AND MIDDLEWARES
 app.use(cookieParser());
+/*app.use(cookieSession({
+  name: 'session',
+  keys: ['key1' , 'key2'],
+}))*/
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 
@@ -88,7 +94,7 @@ app.get("/urls.json", (req, res) => {
 
 //Views URLs routes
 app.get("/urls", (req, res) => {
-  const userId = req.cookies['user_id']
+  const userId = req.cookies['user_id'];
   const templateVars = { urls: urlDatabase, user: userDatabase[userId]};
   
   res.render("urls_index", templateVars);
@@ -223,13 +229,16 @@ app.post('/login', (req, res) => {
 
   const user = authenticateUser(email, password, userDatabase);
 
-  if(user) {
+  bcrypt.compare(password, user.password, (err, success) => {
 
+  if(success) {
     res.cookie('user_id', user.id)
     return res.redirect(`/urls`);
+    
   }
   res.status(403).send('Wrong Credentials!');
-  
+
+});
 });
 
 app.post('/logout', (req,res) => {
@@ -247,18 +256,24 @@ app.post('/register', (req,res) => {
     return res.status(403).send('User already exists!');
   }
 
+  bcrypt.genSalt(10, (err,salt) => {
+    bcrypt.hash(password, salt, (err, hash) => {
 
 const userId = generateRandomString();
 
   const newUser = { 
     id: userId, 
     email, 
-    password,
+    password: hash,
   };
 
   userDatabase[userId] = newUser;
   res.cookie('user_id', userId);
   res.redirect('/urls');
+
+  })
+});
+
 
 });
 
