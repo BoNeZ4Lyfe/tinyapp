@@ -5,36 +5,10 @@ const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
-const {findUserByEmail, authenticateUser, generateRandomString} = require('./helpers');
+const {findUserByEmail, authenticateUser, generateRandomString, getUserUrls} = require('./helpers');
+const {urlDatabase, userDatabase} = require('./database');
 
 const PORT = 8080; // default port 8080
-
-
-
-const urlDatabase = {
-"b2xVn2": {
-  longURL: "http://www.lighthouselabs.ca",
-  userId: 'user1',
-},
-
-"9sm5xK": {
-  longURL: "http://www.google.com",
-  userId: 'user2',
-},
-};
-
-const userDatabase = { 
-"userRandomID": {
-  id: "userRandomID", 
-  email: "user@example.com", 
-  password: 123,
-},
-"user2RandomID": {
-  id: "user2RandomID", 
-  email: "user2@example.com", 
-  password: 123,
-},
-};
 
 
 //SERVER SETTINGS AND MIDDLEWARES
@@ -42,16 +16,15 @@ app.use(cookieParser());
 app.use(cookieSession({
   name: 'session',
   keys: ['key1' , 'key2'],
-}))
+}));
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
-
 
 //ROUTES
 
 //Home route
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  res.send(`<h1>Welcome to TinyApp</h1> <p><h3>Click here to <a href= "/register">Register</a><h3></p>`);
 });
 
 //Database json routes
@@ -66,9 +39,17 @@ app.get("/urls.json", (req, res) => {
 //Views URLs routes
 app.get("/urls", (req, res) => {
   const userId = req.session.user_id;
-  const templateVars = { urls: urlDatabase, user: userDatabase[userId]};
+  if(userId) {
+    const userUrls = getUserUrls(userId, urlDatabase);
+    const templateVars = { urls: userUrls, user: userDatabase[userId]};
+    
+    
+    res.render("urls_index", templateVars);
+  }else {
+    return res.status(400).send('You are not logged in. Click here to <a href= "/login">login</a>')
+
+  }
   
-  res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
@@ -135,7 +116,7 @@ app.post("/urls", (req, res) => {
     userId: user.id,
   };
 
-  res.redirect(`/urls/${shortURL}`);      
+  res.redirect(`/urls`);      
 });
 
 //Update URL
@@ -167,7 +148,7 @@ app.post('/urls/:shortURL', (req, res) => {
     userId: user.id,
   };
 
-  res.redirect(`/urls/${shortURL}`); 
+  res.redirect(`/urls`); 
 });
 
 //Delete URL
@@ -187,7 +168,6 @@ app.post('/urls/:shortURL/delete', (req, res) => {
   delete urlDatabase[shortURL];
 
   res.redirect("/urls");
-
 });
 
 
@@ -209,7 +189,7 @@ app.post('/login', (req, res) => {
 app.post('/logout', (req,res) => {
   req.session = null;
   res.redirect('/login');
-})
+});
 
 app.post('/register', (req,res) => {
   const email = req.body.email;
@@ -236,7 +216,7 @@ const userId = generateRandomString();
   req.session.user_id = userId
   res.redirect('/urls');
 
-  })
+  });
 });
 
 
