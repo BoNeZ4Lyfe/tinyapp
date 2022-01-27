@@ -2,7 +2,6 @@
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
-const cookieParser = require('cookie-parser');
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
 const {findUserByEmail, authenticateUser, generateRandomString, getUserUrls} = require('./helpers');
@@ -12,7 +11,6 @@ const PORT = 8080; // default port 8080
 
 
 //SERVER SETTINGS AND MIDDLEWARES
-app.use(cookieParser());
 app.use(cookieSession({
   name: 'session',
   keys: ['key1' , 'key2'],
