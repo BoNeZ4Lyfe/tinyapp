@@ -40,14 +40,10 @@ app.get("/urls", (req, res) => {
   if(userId) {
     const userUrls = getUserUrls(userId, urlDatabase);
     const templateVars = { urls: userUrls, user: userDatabase[userId]};
-    
-    
     res.render("urls_index", templateVars);
   }else {
     return res.status(400).send('You are not logged in. Click here to <a href= "/login">login</a>')
-
   }
-  
 });
 
 app.get("/urls/new", (req, res) => {
